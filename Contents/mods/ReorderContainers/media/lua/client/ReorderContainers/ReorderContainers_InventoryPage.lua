@@ -3,6 +3,10 @@ require "ISUI/ISButton"
 require "ISUI/ISMouseDrag"
 require "ISUI/ISInventoryPage"
 
+local SORT_KEY = "ReorderContainers_Sort"
+local SORT_KEY_FLOOR = "ReorderContainers_Sort_Floor"
+local SET_MANUALLY = "ReorderContainers_SetManually"
+
 ReorderContainers_Mod = {}
 
 ReorderContainers_Mod.onMouseDown = function(self, x, y)
@@ -67,9 +71,9 @@ ReorderContainers_Mod.onMouseUp = function(self, x, y)
     end
 end
 
-ReorderContainers_Mod.original_addContainerButton = ISInventoryPage.addContainerButton
+ISInventoryPage.pre_reorder_addContainerButton = ISInventoryPage.addContainerButton
 function ISInventoryPage:addContainerButton(container, texture, name, tooltip)
-    local button = ReorderContainers_Mod.original_addContainerButton(self, container, texture, name, tooltip)
+    local button = self.pre_reorder_addContainerButton(self, container, texture, name, tooltip)
     -- Buttons can be reused, so we need to make sure we don't overwrite the original functions
 
     if not button.pre_reorder_onMouseDown then
@@ -95,13 +99,8 @@ function ISInventoryPage:addContainerButton(container, texture, name, tooltip)
     return button
 end
 
-local SORT_KEY = "ReorderContainers_Sort"
-local SORT_KEY_FLOOR = "ReorderContainers_Sort_Floor"
-
-
-
 ISInventoryPage.pre_reorder_createChildren = ISInventoryPage.createChildren
-ISInventoryPage. createChildren = function(self)
+ISInventoryPage.createChildren = function(self)
     self.pre_reorder_createChildren(self)
 
     local reorderButton = ISButton:new(self:getWidth() - 32, self:getHeight() - 24, 32, 16, "", self)
@@ -113,9 +112,14 @@ ISInventoryPage. createChildren = function(self)
     reorderButton.anchorBottom = true
 
     reorderButton.onMouseDown = function(self, x, y)
-        local popup = ReorderContainers_ManualPopup:new(self:getAbsoluteX(), self:getAbsoluteY(), self:getParent())
-        popup:initialise()
-        popup:addToUIManager()
+        local selectedButton = self:getParent().selectedButton
+        if selectedButton then
+            local x = getCore():getScreenWidth() / 2
+            local y = getCore():getScreenHeight() / 2
+            local popup = ReorderContainers_ManualPopup:new(x - 100, y - 60, self:getParent(), selectedButton.inventory)
+            popup:initialise()
+            popup:addToUIManager()
+        end
     end
 
     reorderButton:initialise()
@@ -123,73 +127,113 @@ ISInventoryPage. createChildren = function(self)
     self:addChild(reorderButton)
 end
 
+ReorderContainers_Mod.getPlayerKey = function(player)
+    local playerKey = player:getUsername()
+    if not isClient() then
+        playerKey = player:getForname()..player:getSurname()
+    end
+    return playerKey
+end
 
+ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(player, inventory)
+    local playerKey = ReorderContainers_Mod.getPlayerKey(player)
+    local sortKey = SORT_KEY
+    local parentObject = nil
 
+    if inventory == player:getInventory() then
+        targetModData = player:getModData()
+    elseif inventory:getType() == "floor" then
+        targetModData = player:getModData()
+        sortKey = SORT_KEY_FLOOR
+    else
+        sortKey = playerKey..SORT_KEY
 
+        local item = inventory:getContainingItem()
+        local isoObject = inventory:getParent()
+        if item then
+            targetModData = item:getModData()
+            parentObject = item
+        elseif isoObject then
+            targetModData = isoObject:getModData()
+            parentObject = isoObject
+        end
+    end
 
+    return targetModData, sortKey, parentObject
+end
 
+ReorderContainers_Mod.getSortPriority = function(player, inventory)
+    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
+    if targetModData then
+        return targetModData[sortKey] or -1
+    end
+    return -1
+end
 
+ReorderContainers_Mod.setSortPriority = function(player, inventory, priority, isManual)
+    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
+    if targetModData then
+        targetModData[sortKey] = priority
+        targetModData[SET_MANUALLY] = isManual
+    end
+end
 
-
+ReorderContainers_Mod.isManual = function(player, inventory)
+    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
+    return targetModData and targetModData[SET_MANUALLY]
+end
 
 ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
     local playerObj = getSpecificPlayer(self.player)
-    local playerInv = playerObj:getInventory()
-    local playerModData = playerObj:getModData()
-
 
     local inventoriesAndY = {}
     for index, button in ipairs(self.backpacks) do
         table.insert(inventoriesAndY, {inventory = button.inventory, y = button:getY()})
     end
-
     table.sort(inventoriesAndY, function(a, b) return a.y < b.y end)
 
     local seenObjs = {}
-
+    local lastSort = 0
     for index, data in ipairs(inventoriesAndY) do
-        if data.inventory == playerInv then
-            playerModData[SORT_KEY] = index * 100
-        elseif data.inventory:getType() == "floor" then
-            playerModData[SORT_KEY_FLOOR] = index * 100
+        local targetModData, sortKey, parent = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(playerObj, data.inventory)
+        local isManual = targetModData and targetModData[SET_MANUALLY]
+        local isDraggedButton = data.inventory == draggedButton.inventory
+
+        if not isDraggedButton and parent and seenObjs[parent] then
+            -- Skip this button, some IsoObjects have multiple inventories
         else
-            local item = data.inventory:getContainingItem()
-            local isoObject = data.inventory:getParent()
-            if item then
-                item:getModData()[SORT_KEY] = index * 100
-            elseif isoObject and (not seenObjs[isoObject] or data.inventory == draggedButton.inventory) then
-                seenObjs[isoObject] = true -- some containers have multiple inventories, so only set the sort once. They have to sort together unfortunately.
-                isoObject:getModData()[SORT_KEY] = index * 100
+            if parent then
+                seenObjs[parent] = true
+            end
+
+            if not isManual or isDraggedButton then
+                lastSort = lastSort + 10
+                targetModData[sortKey] = lastSort
+                targetModData[SET_MANUALLY] = nil
+            else
+                lastSort = targetModData[sortKey]
+                -- Look back one button
+                if index > 1 then
+                    local prevInventory = inventoriesAndY[index - 1].inventory
+                    local prevSort = ReorderContainers_Mod.getSortPriority(playerObj, prevInventory)
+                    if prevSort >= lastSort then
+                        ReorderContainers_Mod.setSortPriority(playerObj, prevInventory, lastSort - 1, false)
+                    end
+                end
             end
         end
     end
-
 end
 
 ISInventoryPage.applyBackpackOrder = function(self)
     local playerObj = getSpecificPlayer(self.player)
-    local playerInv = playerObj:getInventory()
-    local playerModData = playerObj:getModData()
 
     local buttonsAndSort = {}
     for index, button in ipairs(self.backpacks) do
-        local sort = -1
-        if button.inventory == playerInv then
-            sort = playerModData[SORT_KEY] or -1
-        elseif button.inventory:getType() == "floor" then
-            sort = playerModData[SORT_KEY_FLOOR] or -1
-        else
-            local item = button.inventory:getContainingItem()
-            local isoObject = button.inventory:getParent()
-            if item then
-                sort = item:getModData()[SORT_KEY] or -1
-            elseif isoObject then
-                sort = isoObject:getModData()[SORT_KEY] or -1
-            end
-        end
-
-        if sort == -1 then
-            sort = 50000 + index
+        local sort = 99999 + index
+        local targetModData, sortKey, parent = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(playerObj, button.inventory)
+        if targetModData then
+            sort = targetModData[sortKey] or (99999 + index)
         end
         table.insert(buttonsAndSort, {button = button, sort = sort})
     end
@@ -200,12 +244,13 @@ ISInventoryPage.applyBackpackOrder = function(self)
         self.pre_reorder_backpacks = {}
     end
     
-    -- Store the original list order so we can restore it for certain code paths
+    -- Store the original backpack order so we can restore it for certain code paths (onMouseUp in particular)
     table.wipe(self.pre_reorder_backpacks)
     for index, button in ipairs(self.backpacks) do
         self.pre_reorder_backpacks[index] = button
     end
 
+    -- Reorder the backpack list to match the new sort order
     table.wipe(self.backpacks)
     for index, data in ipairs(buttonsAndSort) do
         data.button:setY((index - 1) * self.buttonSize + self:titleBarHeight() - 1)
