@@ -11,7 +11,8 @@ ReorderContainers_Mod = {}
 
 ReorderContainers_Mod.onMouseDown = function(self, x, y)
     self.pre_reorder_onMouseDown(self, x, y)
-    self.reorderMouseY = getMouseY()
+    self.reorderStartMouseY = getMouseY()
+    self.reorderStartY = self:getY()
 end
 
 ReorderContainers_Mod.onMouseMove = function(self, dx, dy, skipOgMouseMove)
@@ -19,7 +20,7 @@ ReorderContainers_Mod.onMouseMove = function(self, dx, dy, skipOgMouseMove)
         self.pre_reorder_onMouseMove(self, dx, dy)
     end
     if self.pressed then
-        if math.abs(self.reorderMouseY - getMouseY()) > 10 then
+        if math.abs(self.reorderStartMouseY - getMouseY()) > 14 then
             self.draggingToReorder = true
         end
 
@@ -127,16 +128,8 @@ ISInventoryPage.createChildren = function(self)
     self:addChild(reorderButton)
 end
 
-ReorderContainers_Mod.getPlayerKey = function(player)
-    local playerKey = player:getUsername()
-    if not isClient() then
-        playerKey = player:getForname()..player:getSurname()
-    end
-    return playerKey
-end
-
 ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(player, inventory)
-    local playerKey = ReorderContainers_Mod.getPlayerKey(player)
+    local playerKey = player:getUsername()
     local sortKey = SORT_KEY
     local parentObject = nil
 
@@ -184,6 +177,12 @@ ReorderContainers_Mod.isManual = function(player, inventory)
 end
 
 ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
+    -- Don't reorder if the button hasn't moved far enough
+    if draggedButton and math.abs(draggedButton:getY() - draggedButton.reorderStartY) <= 32 then
+        draggedButton:setY(draggedButton.reorderStartY)
+        return
+    end
+
     local playerObj = getSpecificPlayer(self.player)
 
     local inventoriesAndY = {}
