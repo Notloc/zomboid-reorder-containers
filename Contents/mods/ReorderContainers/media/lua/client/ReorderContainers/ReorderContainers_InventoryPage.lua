@@ -60,14 +60,6 @@ ReorderContainers_Mod.onMouseUp = function(self, x, y)
         page:reorderContainerButtons(self)
         page:refreshBackpacks()
     else
-        -- Restore the original backpack order before we process the mouse up
-        if page.pre_reorder_backpacks then
-            table.wipe(page.backpacks)
-            for index, button in ipairs(page.pre_reorder_backpacks) do
-                table.insert(page.backpacks, button)
-            end
-        end
-
         self.pre_reorder_onMouseUp(self, x, y)
     end
 end
@@ -239,21 +231,8 @@ ISInventoryPage.applyBackpackOrder = function(self)
 
     table.sort(buttonsAndSort, function(a, b) return a.sort < b.sort end)
 
-    if not self.pre_reorder_backpacks then
-        self.pre_reorder_backpacks = {}
-    end
-    
-    -- Store the original backpack order so we can restore it for certain code paths (onMouseUp in particular)
-    table.wipe(self.pre_reorder_backpacks)
-    for index, button in ipairs(self.backpacks) do
-        self.pre_reorder_backpacks[index] = button
-    end
-
-    -- Reorder the backpack list to match the new sort order
-    table.wipe(self.backpacks)
     for index, data in ipairs(buttonsAndSort) do
         data.button:setY((index - 1) * self.buttonSize + self:titleBarHeight() - 1)
-        self.backpacks[index] = data.button
     end
 end
 
@@ -261,10 +240,29 @@ ISInventoryPage.pre_reorder_refreshBackpacks = ISInventoryPage.refreshBackpacks
 ISInventoryPage.refreshBackpacks = function(self)
     self:pre_reorder_refreshBackpacks()
     self:applyBackpackOrder()
+    ReorderContainers_Mod.pendingRefresh = false
 end
 
+ISInventoryPage.pre_reorder_onMouseWheel = ISInventoryPage.onMouseWheel
+ISInventoryPage.onMouseWheel = function(self, del)
+    -- Store the original order of the backpacks
+    local originalOrder = {}
+    for index, button in ipairs(self.backpacks) do
+        originalOrder[button] = index
+    end
 
+    -- Sort the backpacks by their Y position so that scrolling works as expected
+    table.sort(self.backpacks, function(a, b) return a:getY() < b:getY() end)
+    ReorderContainers_Mod.pendingRefresh = true
 
+    -- The return value here is not reliable for checking if the backpacks were refreshed
+    local retVal = self:pre_reorder_onMouseWheel(del)
 
+    -- The backpacks were not refreshed, so we need to restore the original order
+    if ReorderContainers_Mod.pendingRefresh then
+        table.sort(self.backpacks, function(a, b) return originalOrder[a] < originalOrder[b] end)
+        ReorderContainers_Mod.pendingRefresh = false
+    end
 
-
+    return retVal
+end
