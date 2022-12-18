@@ -6,27 +6,41 @@ require "ISUI/ISInventoryPage"
 local SORT_KEY = "ReorderContainers_Sort"
 local SORT_KEY_FLOOR = "ReorderContainers_Sort_Floor"
 local SET_MANUALLY = "ReorderContainers_SetManually"
+local INV_LOCK = "ReorderContainers_InvLock"
+local LOOT_LOCK = "ReorderContainers_LootLock"
 
 ReorderContainers_Mod = {}
+
+ReorderContainers_Mod.isLocked = function(inventoryPage)
+    local player = getSpecificPlayer(inventoryPage.player)
+    if inventoryPage.onCharacter then
+        return player:getModData()[INV_LOCK]
+    else
+        return player:getModData()[LOOT_LOCK]
+    end
+end
 
 ReorderContainers_Mod.onMouseDown = function(self, x, y)
     self.pre_reorder_onMouseDown(self, x, y)
     self.reorderStartMouseY = getMouseY()
     self.reorderStartY = self:getY()
+
+    self.canDragToReorder = not ReorderContainers_Mod.isLocked(self:getParent())
 end
 
 ReorderContainers_Mod.onMouseMove = function(self, dx, dy, skipOgMouseMove)
     if not skipOgMouseMove then -- skipOgMouseMove is true when we're calling this from onMouseMoveOutside
         self.pre_reorder_onMouseMove(self, dx, dy)
     end
-    if self.pressed then
-        if math.abs(self.reorderStartMouseY - getMouseY()) > 14 then
+
+    if self.pressed and self.canDragToReorder then
+        local parent = self:getParent()
+
+        if math.abs(self.reorderStartMouseY - getMouseY()) > parent.buttonSize/2 then
             self.draggingToReorder = true
         end
 
         if self.draggingToReorder then
-            local parent = self:getParent()
-            
             local x = getMouseX()
             local y = getMouseY()
             local parentY = parent:getAbsoluteY()
@@ -67,6 +81,7 @@ end
 ISInventoryPage.pre_reorder_addContainerButton = ISInventoryPage.addContainerButton
 function ISInventoryPage:addContainerButton(container, texture, name, tooltip)
     local button = self.pre_reorder_addContainerButton(self, container, texture, name, tooltip)
+
     -- Buttons can be reused, so we need to make sure we don't overwrite the original functions
 
     if not button.pre_reorder_onMouseDown then
@@ -96,7 +111,12 @@ ISInventoryPage.pre_reorder_createChildren = ISInventoryPage.createChildren
 ISInventoryPage.createChildren = function(self)
     self.pre_reorder_createChildren(self)
 
-    local reorderButton = ISButton:new(self:getWidth() - 32, self:getHeight() - 24, 32, 16, "", self)
+    self:createReorderContainersSortButton()
+    self:createReorderContainersLockButton()
+end
+
+ISInventoryPage.createReorderContainersSortButton = function(self)
+    local reorderButton = ISButton:new(self:getWidth() - self.buttonSize/2, self:getHeight() - self.buttonSize*0.75, self.buttonSize/2, self.buttonSize/2, "", self)
     reorderButton:setImage(getTexture("media/ui/ReorderContainers/reorder-icon.png"))
 
     reorderButton.anchorLeft = false
@@ -118,6 +138,45 @@ ISInventoryPage.createChildren = function(self)
     reorderButton:initialise()
     reorderButton:instantiate()
     self:addChild(reorderButton)
+end
+
+ISInventoryPage.createReorderContainersLockButton = function(self)
+    local player = getSpecificPlayer(self.player)
+    local onCharacter = self.onCharacter
+
+    local lockButton = ISButton:new(self:getWidth() - self.buttonSize, self:getHeight() - self.buttonSize * 0.75, self.buttonSize/2, self.buttonSize/2, "", self)
+    if ReorderContainers_Mod.isLocked(self) then
+        lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))
+    else
+        lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
+    end
+
+    lockButton.anchorLeft = false
+    lockButton.anchorRight = true
+    lockButton.anchorTop = false
+    lockButton.anchorBottom = true
+
+    -- Toggle the lock state and update the button image
+    lockButton:setOnClick(function()
+        local modData = player:getModData()
+        local key = INV_LOCK
+        if not onCharacter then
+            key = LOOT_LOCK
+        end
+        
+        local newState = (not modData[key])
+        if newState then 
+            lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))        
+        else
+            lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
+        end
+
+        modData[key] = newState
+    end)
+
+    lockButton:initialise()
+    lockButton:instantiate()
+    self:addChild(lockButton)
 end
 
 ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(player, inventory)
@@ -253,8 +312,8 @@ ISInventoryPage.onMouseWheel = function(self, del)
 
     -- Sort the backpacks by their Y position so that scrolling works as expected
     table.sort(self.backpacks, function(a, b) return a:getY() < b:getY() end)
+    
     ReorderContainers_Mod.pendingRefresh = true
-
     -- The return value here is not reliable for checking if the backpacks were refreshed
     local retVal = self:pre_reorder_onMouseWheel(del)
 
