@@ -206,12 +206,23 @@ ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(playe
     return targetModData, sortKey, parentObject
 end
 
-ReorderContainers_Mod.getSortPriority = function(player, inventory)
+ReorderContainers_Mod.getSortPriority = function(player, inventory, inventoryPage)
     local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
     if targetModData then
-        return targetModData[sortKey] or -1
+        return targetModData[sortKey] or ReorderContainers_Mod.getDefaultSortPriority(inventory, inventoryPage)
     end
-    return -1
+    return ReorderContainers_Mod.getDefaultSortPriority(inventory, inventoryPage)
+end
+
+ReorderContainers_Mod.getDefaultSortPriority = function(inventory, inventoryPage)
+    local index = 0
+    for i, backpack in ipairs(inventoryPage.backpacks) do
+        if backpack == inventory then
+            index = i
+            break
+        end
+    end
+    return 1000 + index
 end
 
 ReorderContainers_Mod.setSortPriority = function(player, inventory, priority, isManual)
@@ -280,10 +291,10 @@ ISInventoryPage.applyBackpackOrder = function(self)
 
     local buttonsAndSort = {}
     for index, button in ipairs(self.backpacks) do
-        local sort = 99999 + index
+        local sort = 1000 + index
         local targetModData, sortKey, parent = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(playerObj, button.inventory)
         if targetModData then
-            sort = targetModData[sortKey] or (99999 + index)
+            sort = targetModData[sortKey] or (1000 + index)
         end
         table.insert(buttonsAndSort, {button = button, sort = sort})
     end

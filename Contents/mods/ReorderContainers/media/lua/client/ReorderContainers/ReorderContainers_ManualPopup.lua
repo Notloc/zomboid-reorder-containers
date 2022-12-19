@@ -34,7 +34,7 @@ function ReorderContainers_ManualPopup:createChildren()
     self:addChild(self.infoLabel)
 
     local player = getSpecificPlayer(self.inventoryPage.player)
-    local currentValue = ReorderContainers_Mod.getSortPriority(player, self.inventory)
+    local currentValue = ReorderContainers_Mod.getSortPriority(player, self.inventory, self.inventoryPage)
 
     self.entry = ISTextEntryBox:new(tostring(currentValue), 0, 0, 100, 20)
     self.entry:initialise()
