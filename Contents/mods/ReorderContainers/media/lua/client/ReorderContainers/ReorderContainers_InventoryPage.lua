@@ -217,7 +217,7 @@ end
 ReorderContainers_Mod.getDefaultSortPriority = function(inventory, inventoryPage)
     local index = 0
     for i, backpack in ipairs(inventoryPage.backpacks) do
-        if backpack == inventory then
+        if backpack.inventory == inventory then
             index = i
             break
         end
