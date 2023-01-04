@@ -4,10 +4,20 @@ require "ISUI/ISMouseDrag"
 require "ISUI/ISInventoryPage"
 
 local SORT_KEY = "ReorderContainers_Sort"
-local SORT_KEY_FLOOR = "ReorderContainers_Sort_Floor"
 local SET_MANUALLY = "ReorderContainers_SetManually"
 local INV_LOCK = "ReorderContainers_InvLock"
 local LOOT_LOCK = "ReorderContainers_LootLock"
+
+-- For special containers that aren't "real"
+local SPECIAL_SORT_KEYS_BY_INV_TYPE = {
+    ["floor"] = "ReorderContainers_Sort_Floor",
+
+    -- SpiffUI
+    ["SpiffBodies"] = "Reorder_SpiffBodies",
+    ["SpiffContainer"] = "Reorder_SpiffContainer",
+    ["SpiffPack"] = "Reorder_SpiffPack",
+    ["SpiffEquip"] = "Reorder_SpiffEquip",
+}
 
 ReorderContainers_Mod = {}
 
@@ -185,10 +195,11 @@ ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(playe
     local parentObject = nil
 
     if inventory == player:getInventory() then
+        sortKey = SORT_KEY
         targetModData = player:getModData()
-    elseif inventory:getType() == "floor" then
+    elseif SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()] then
+        sortKey = SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()]
         targetModData = player:getModData()
-        sortKey = SORT_KEY_FLOOR
     else
         sortKey = playerKey..SORT_KEY
 
