@@ -238,6 +238,10 @@ ReorderContainers_Mod.isManual = function(player, inventory)
     return targetModData and targetModData[SET_MANUALLY]
 end
 
+local function isButtonValid(invPage, button)
+    return button:getIsVisible() and invPage.children[button.ID]
+end
+
 ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
     -- Don't reorder if the button hasn't moved far enough
     if draggedButton and math.abs(draggedButton:getY() - draggedButton.reorderStartY) <= 32 then
@@ -249,7 +253,9 @@ ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
 
     local inventoriesAndY = {}
     for index, button in ipairs(self.backpacks) do
-        table.insert(inventoriesAndY, {inventory = button.inventory, y = button:getY()})
+        if isButtonValid(self, button) then
+            table.insert(inventoriesAndY, {inventory = button.inventory, y = button:getY()})
+        end
     end
     table.sort(inventoriesAndY, function(a, b) return a.y < b.y end)
 
@@ -291,12 +297,14 @@ ISInventoryPage.applyBackpackOrder = function(self)
 
     local buttonsAndSort = {}
     for index, button in ipairs(self.backpacks) do
-        local sort = 1000 + index
-        local targetModData, sortKey, parent = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(playerObj, button.inventory)
-        if targetModData then
-            sort = targetModData[sortKey] or (1000 + index)
+        if isButtonValid(self, button) then
+            local sort = 1000 + index
+            local targetModData, sortKey, parent = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(playerObj, button.inventory)
+            if targetModData then
+                sort = targetModData[sortKey] or (1000 + index)
+            end
+            table.insert(buttonsAndSort, {button = button, sort = sort})
         end
-        table.insert(buttonsAndSort, {button = button, sort = sort})
     end
 
     table.sort(buttonsAndSort, function(a, b) return a.sort < b.sort end)
