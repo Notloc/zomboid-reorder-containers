@@ -3,90 +3,7 @@ require "ISUI/ISButton"
 require "ISUI/ISMouseDrag"
 require "ISUI/ISInventoryPage"
 
-local SORT_KEY = "ReorderContainers_Sort"
 local SET_MANUALLY = "ReorderContainers_SetManually"
-local INV_LOCK = "ReorderContainers_InvLock"
-local LOOT_LOCK = "ReorderContainers_LootLock"
-
--- For special containers that aren't "real"
-local SPECIAL_SORT_KEYS_BY_INV_TYPE = {
-    ["floor"] = "ReorderContainers_Sort_Floor",
-
-    -- SpiffUI
-    ["SpiffBodies"] = "Reorder_SpiffBodies",
-    ["SpiffContainer"] = "Reorder_SpiffContainer",
-    ["SpiffPack"] = "Reorder_SpiffPack",
-    ["SpiffEquip"] = "Reorder_SpiffEquip",
-}
-
-ReorderContainers_Mod = {}
-
-ReorderContainers_Mod.isLocked = function(inventoryPage)
-    local player = getSpecificPlayer(inventoryPage.player)
-    if inventoryPage.onCharacter then
-        return player:getModData()[INV_LOCK]
-    else
-        return player:getModData()[LOOT_LOCK]
-    end
-end
-
-ReorderContainers_Mod.onMouseDown = function(self, x, y)
-    self.pre_reorder_onMouseDown(self, x, y)
-    self.reorderStartMouseY = getMouseY()
-    self.reorderStartY = self:getY()
-
-    self.canDragToReorder = not ReorderContainers_Mod.isLocked(self:getParent())
-end
-
-ReorderContainers_Mod.onMouseMove = function(self, dx, dy, skipOgMouseMove)
-    if not skipOgMouseMove then -- skipOgMouseMove is true when we're calling this from onMouseMoveOutside
-        self.pre_reorder_onMouseMove(self, dx, dy)
-    end
-
-    if self.pressed and self.canDragToReorder then
-        local parent = self:getParent()
-
-        if math.abs(self.reorderStartMouseY - getMouseY()) > parent.buttonSize/2 then
-            self.draggingToReorder = true
-        end
-
-        if self.draggingToReorder then
-            local x = getMouseX()
-            local y = getMouseY()
-            local parentY = parent:getAbsoluteY()
-            local newY = y - parentY - self:getHeight() / 2
-            
-            newY = math.max(parent:titleBarHeight() - 16, newY)
-
-            self:setY(newY)
-            self:bringToTop()
-    
-            self.draggingToReorder = true
-        end
-    end
-end
-
-ReorderContainers_Mod.onMouseMoveOutside = function(self, dx, dy)
-    self.pre_reorder_onMouseMoveOutside(self, dx, dy)
-    ReorderContainers_Mod.onMouseMove(self, dx, dy, true)
-
-    -- if the mouse is no longer down, we missed the mouse up event
-    if self.draggingToReorder and not isMouseButtonDown(0) then
-        ReorderContainers_Mod.onMouseUp(self, 0, 0)
-    end
-end
-
-ReorderContainers_Mod.onMouseUp = function(self, x, y)
-    local page = self:getParent()
-    if self.draggingToReorder then
-        self.pressed = false;
-        self.draggingToReorder = false
-        page:reorderContainerButtons(self)
-        page:refreshBackpacks()
-    else
-        self.pre_reorder_onMouseUp(self, x, y)
-    end
-end
 
 ISInventoryPage.pre_reorder_addContainerButton = ISInventoryPage.addContainerButton
 function ISInventoryPage:addContainerButton(container, texture, name, tooltip)
@@ -141,6 +58,8 @@ ISInventoryPage.createReorderContainersSortButton = function(self)
             local y = getCore():getScreenHeight() / 2
             local popup = ReorderContainers_ManualPopup:new(x - 100, y - 60, self:getParent(), selectedButton.inventory)
             popup:initialise()
+            popup:setAlwaysOnTop(true)
+            popup:setCapture(true)
             popup:addToUIManager()
         end
     end
@@ -148,6 +67,31 @@ ISInventoryPage.createReorderContainersSortButton = function(self)
     reorderButton:initialise()
     reorderButton:instantiate()
     self:addChild(reorderButton)
+    self.reorderOptionsButton = reorderButton
+end
+
+local function updateLock(self, lockButton)
+    local newState = nil
+    if onCharacter then
+        newState = ReorderContainers_Mod.toggleInventoryLock(getSpecificPlayer(self.player))
+    else
+        newState = ReorderContainers_Mod.toggleLootLock(getSpecificPlayer(self.player))
+    end
+    
+    if newState or not ReorderContainers_Mod.canReorderBackpacks(self) then 
+        lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))        
+    else
+        lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
+    end
+end
+
+ISInventoryPage.updateReorderContainersLock = function(self)
+    if onCharacter then
+        return
+    end
+
+    ReorderContainers_Mod.toggleLootLock(getSpecificPlayer(self.player))
+    updateLock(self, self.reorderLockButton)
 end
 
 ISInventoryPage.createReorderContainersLockButton = function(self)
@@ -155,7 +99,7 @@ ISInventoryPage.createReorderContainersLockButton = function(self)
     local onCharacter = self.onCharacter
 
     local lockButton = ISButton:new(self:getWidth() - self.buttonSize, self:getHeight() - self.buttonSize * 0.75, self.buttonSize/2, self.buttonSize/2, "", self)
-    if ReorderContainers_Mod.isLocked(self) then
+    if ReorderContainers_Mod.isLocked(self) or not ReorderContainers_Mod.canReorderBackpacks(self) then
         lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))
     else
         lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
@@ -168,85 +112,18 @@ ISInventoryPage.createReorderContainersLockButton = function(self)
 
     -- Toggle the lock state and update the button image
     lockButton:setOnClick(function()
-        local modData = player:getModData()
-        local key = INV_LOCK
-        if not onCharacter then
-            key = LOOT_LOCK
-        end
-        
-        local newState = (not modData[key])
-        if newState then 
-            lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))        
-        else
-            lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
+        if not ReorderContainers_Mod.canReorderBackpacks(self) then
+            self.reorderOptionsButton:onMouseDown(0,0)
+            return
         end
 
-        modData[key] = newState
+        updateLock(self, lockButton)
     end)
 
     lockButton:initialise()
     lockButton:instantiate()
     self:addChild(lockButton)
-end
-
-ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject = function(player, inventory)
-    local playerKey = player:getUsername()
-    local sortKey = SORT_KEY
-    local parentObject = nil
-
-    if inventory == player:getInventory() then
-        sortKey = SORT_KEY
-        targetModData = player:getModData()
-    elseif SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()] then
-        sortKey = SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()]
-        targetModData = player:getModData()
-    else
-        sortKey = playerKey..SORT_KEY
-
-        local item = inventory:getContainingItem()
-        local isoObject = inventory:getParent()
-        if item then
-            targetModData = item:getModData()
-            parentObject = item
-        elseif isoObject then
-            targetModData = isoObject:getModData()
-            parentObject = isoObject
-        end
-    end
-
-    return targetModData, sortKey, parentObject
-end
-
-ReorderContainers_Mod.getSortPriority = function(player, inventory, inventoryPage)
-    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    if targetModData then
-        return targetModData[sortKey] or ReorderContainers_Mod.getDefaultSortPriority(inventory, inventoryPage)
-    end
-    return ReorderContainers_Mod.getDefaultSortPriority(inventory, inventoryPage)
-end
-
-ReorderContainers_Mod.getDefaultSortPriority = function(inventory, inventoryPage)
-    local index = 0
-    for i, backpack in ipairs(inventoryPage.backpacks) do
-        if backpack.inventory == inventory then
-            index = i
-            break
-        end
-    end
-    return 1000 + index
-end
-
-ReorderContainers_Mod.setSortPriority = function(player, inventory, priority, isManual)
-    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    if targetModData then
-        targetModData[sortKey] = priority
-        targetModData[SET_MANUALLY] = isManual
-    end
-end
-
-ReorderContainers_Mod.isManual = function(player, inventory)
-    local targetModData, sortKey = ReorderContainers_Mod.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    return targetModData and targetModData[SET_MANUALLY]
+    self.reorderLockButton = lockButton
 end
 
 local function isButtonValid(invPage, button)
@@ -327,9 +204,16 @@ end
 
 ISInventoryPage.pre_reorder_refreshBackpacks = ISInventoryPage.refreshBackpacks
 ISInventoryPage.refreshBackpacks = function(self)
+    if self.killTheChoice then -- Makes controller work...?
+        self.backpackChoice = nil
+        self.killTheChoice = false
+    end
+    
     self:pre_reorder_refreshBackpacks()
-    self:applyBackpackOrder()
-    ReorderContainers_Mod.pendingRefresh = false
+    if ReorderContainers_Mod.canReorderBackpacks(self) then
+        self:applyBackpackOrder()
+    end
+    self.pendingReorder = false
 end
 
 ISInventoryPage.pre_reorder_onMouseWheel = ISInventoryPage.onMouseWheel
@@ -343,15 +227,50 @@ ISInventoryPage.onMouseWheel = function(self, del)
     -- Sort the backpacks by their Y position so that scrolling works as expected
     table.sort(self.backpacks, function(a, b) return a:getY() < b:getY() end)
     
-    ReorderContainers_Mod.pendingRefresh = true
-    -- The return value here is not reliable for checking if the backpacks were refreshed
+    -- The backpacks *might* get refreshed by the mousescroll, so we track that
+    self.pendingReorder = true
+
     local retVal = self:pre_reorder_onMouseWheel(del)
 
     -- The backpacks were not refreshed, so we need to restore the original order
-    if ReorderContainers_Mod.pendingRefresh then
+    if self.pendingReorder then
         table.sort(self.backpacks, function(a, b) return originalOrder[a] < originalOrder[b] end)
-        ReorderContainers_Mod.pendingRefresh = false
+        self.pendingReorder = false
     end
 
     return retVal
+end
+
+local function handleJoypadDown(self, target, button)
+    -- Store the original order of the backpacks
+    local originalOrder = {}
+    for index, button in ipairs(target.backpacks) do
+        originalOrder[button] = index
+    end
+
+    -- Sort the backpacks by their Y position so that scrolling works as expected
+    table.sort(target.backpacks, function(a, b) return a:getY() < b:getY() end)
+
+    -- Clear the 'backpackChoice', not sure what its actually for, but we stop it from existing on bumper inputs
+    target.killTheChoice = true
+
+    local retVal = self:pre_reorder_onJoypadDown(button)
+    table.sort(target.backpacks, function(a, b) return originalOrder[a] < originalOrder[b] end)
+    return retVal
+end
+
+ISInventoryPage.pre_reorder_onJoypadDown = ISInventoryPage.onJoypadDown
+ISInventoryPage.onJoypadDown = function(self, button)
+    if button == Joypad.LBumper then
+        return handleJoypadDown(self, getPlayerInventory(self.player), button)
+    end
+
+    if button == Joypad.RBumper then
+        local lootPage = getPlayerLoot(self.player)
+        if ReorderContainers_Mod.canReorderBackpacks(lootPage) then
+            return handleJoypadDown(self, lootPage, button)
+        end
+    end
+
+    return self:pre_reorder_onJoypadDown(button)
 end
