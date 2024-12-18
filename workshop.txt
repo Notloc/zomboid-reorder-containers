@@ -1,22 +1,25 @@
 version=1
 id=2901962885
-title=Reorder Containers - Backpack Orders
-description=[b]Reorder Containers[/b] is an inventory mod that allows you to customize the order in which containers and backpacks appear in the inventory.
-description=
-description=Simply drag and drop the container icons to rearrange them to your liking.
-description=They'll even remember their preferred order if you drop the backpack and re-equip it later.
-description=You can also rearrange containers in the loot window, including the floor!
-description=
-description=Lastly, you can manually set the sorting priority for containers if you need to. Just select the container and click the sorting icon at the bottom right of the inventory.
-description=The drag and drop system will automatically handle the sorting priority by default.
-description=
-description=[img]https://i.imgur.com/p7Fv1Z6.gif[/img]
-description=
-description=[h3]If you enjoy my mods, consider supporting me on Ko-fi![/h3]
-description=[url=https://ko-fi.com/notloc][img]https://i.imgur.com/jLt3Dyv.png[/img][/url]
-description=Or, just come check out some previews of what I'm working on next!
-description=
-description=[h1]Other Mods To Check Out![/h1]
+title=[B42/41] Reorder Containers - Backpack Orders
+description=[b]Reorder Containers[/b] is an inventory mod that allows you to customize the order in which containers and backpacks appear in the inventory.
+description=
+description=Simply drag and drop the container icons to rearrange them to your liking.
+description=They'll even remember their preferred order if you drop the backpack and re-equip it later.
+description=
+description=
+description=You also have the option to rearrange containers in the loot window, [b]but you need to turn it on using the options at the bottom of the loot window (next to the lock)[/b]
+description=
+description=Lastly, you can manually set the sorting priority for containers if you need to. Just select the container and click the options icon at the bottom right of the window (next to the lock)
+description=
+description=The drag and drop system will automatically handle the sorting priority by default.
+description=
+description=[img]https://i.imgur.com/p7Fv1Z6.gif[/img]
+description=
+description=[h3]If you enjoy my mods, consider supporting me on Ko-fi![/h3]
+description=[url=https://ko-fi.com/notloc][img]https://i.imgur.com/jLt3Dyv.png[/img][/url]
+description=Or, just come check out some previews of what I'm working on next!
+description=
+description=[h1]Other Mods To Check Out![/h1]
 description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=2808679062][img]https://i.imgur.com/tDcAzoR.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2804531012][img]https://i.imgur.com/RD0EbXR.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=2903771337][img]https://i.imgur.com/gxEDz2R.png[/img][/url]
-tags=Build 41;Interface;Misc;Multiplayer
+tags=Build 41;Build 42;Interface;Misc;Multiplayer
 visibility=public
