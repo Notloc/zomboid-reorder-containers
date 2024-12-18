@@ -72,7 +72,7 @@ end
 
 local function updateLock(self, lockButton)
     local newState = nil
-    if onCharacter then
+    if self.onCharacter then
         newState = ReorderContainers_Mod.toggleInventoryLock(getSpecificPlayer(self.player))
     else
         newState = ReorderContainers_Mod.toggleLootLock(getSpecificPlayer(self.player))
@@ -86,7 +86,7 @@ local function updateLock(self, lockButton)
 end
 
 ISInventoryPage.updateReorderContainersLock = function(self)
-    if onCharacter then
+    if self.onCharacter then
         return
     end
 
