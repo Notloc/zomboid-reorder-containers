@@ -161,12 +161,13 @@ ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
                 seenObjs[parent] = true
             end
 
-            if not isManual or isDraggedButton then
+            local savedSort = tonumber(targetModData[sortKey])
+            if not isManual or isDraggedButton or savedSort == nil then
                 lastSort = lastSort + 10
                 targetModData[sortKey] = lastSort
                 targetModData[SET_MANUALLY] = nil
             else
-                lastSort = targetModData[sortKey]
+                lastSort = savedSort
                 -- Look back one button
                 if index > 1 then
                     local prevInventory = inventoriesAndY[index - 1].inventory
