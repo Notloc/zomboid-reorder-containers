@@ -65,13 +65,14 @@ function SortableBackpackButton:onMouseMove(dx, dy, skipOgMouseMove)
             self.draggingToReorder = true
         end
 
-        if self.draggingToReorder then
+        local parent = self.parent
+        if self.draggingToReorder and parent then
             local x = getMouseX()
             local y = getMouseY()
-            local parentY = inventoryPage:getAbsoluteY()
+            local parentY = parent:getAbsoluteY()
             local newY = y - parentY - self:getHeight() / 2
             
-            newY = math.max(inventoryPage:titleBarHeight() - 16, newY)
+            newY = math.max(-4, newY)
 
             self:setY(newY)
             self:bringToTop()

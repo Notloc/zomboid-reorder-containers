@@ -11,12 +11,12 @@ local ReorderContainersService = require("ReorderContainers/ReorderContainersSer
 local SET_MANUALLY = "ReorderContainers_SetManually"
 
 local function isButtonValid(invPage, button)
-    return button:getIsVisible() and invPage.children[button.ID]
+    return button:getIsVisible() and invPage.containerButtonPanel.children[button.ID]
 end
 
-ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
+function ISInventoryPage:reorderContainerButtons(draggedButton)
     -- Don't reorder if the button hasn't moved far enough
-    if draggedButton and math.abs(draggedButton:getY() - draggedButton.reorderStartY) <= 32 then
+    if draggedButton and math.abs(draggedButton:getY() - draggedButton.reorderStartY) <= self.buttonSize then
         draggedButton:setY(draggedButton.reorderStartY)
         return
     end
@@ -25,6 +25,7 @@ ISInventoryPage.reorderContainerButtons = function(self, draggedButton)
 
     local inventoriesAndY = {}
     for index, button in ipairs(self.backpacks) do
+        ---@cast button SortableBackpackButton
         if isButtonValid(self, button) then
             table.insert(inventoriesAndY, {inventory = button.inventory, y = button:getY()})
         end
@@ -83,7 +84,7 @@ ISInventoryPage.applyBackpackOrder = function(self)
     table.sort(buttonsAndSort, function(a, b) return a.sort < b.sort end)
 
     for index, data in ipairs(buttonsAndSort) do
-        data.button:setY((index - 1) * self.buttonSize + self:titleBarHeight() - 1)
+        data.button:setY((index - 1) * self.buttonSize)
     end
 end
 

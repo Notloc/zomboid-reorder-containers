@@ -1,5 +1,7 @@
 local ReorderContainersService = require("ReorderContainers/ReorderContainersService")
 
+local og_onJoypadDown = ISInventoryPage.onJoypadDown
+
 local function handleJoypadDown(self, target, button)
     -- Store the original order of the backpacks
     local originalOrder = {}
@@ -13,12 +15,11 @@ local function handleJoypadDown(self, target, button)
     -- Clear the 'backpackChoice', not sure what its actually for, but we stop it from existing on bumper inputs
     target.killTheChoice = true
 
-    local retVal = self:pre_reorder_onJoypadDown(button)
+    local retVal = og_onJoypadDown(self, button)
     table.sort(target.backpacks, function(a, b) return originalOrder[a] < originalOrder[b] end)
     return retVal
 end
 
-local og_onJoypadDown = ISInventoryPage.onJoypadDown
 function ISInventoryPage:onJoypadDown(button)
     if button == Joypad.LBumper then
         return handleJoypadDown(self, getPlayerInventory(self.player), button)

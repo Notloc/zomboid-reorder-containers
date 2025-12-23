@@ -30,13 +30,14 @@ function ISInventoryPage:createChildren()
     
     local buttonSize = self.buttonSize/2 -- Half the size of the inventory container icons
     local xPos = self:getWidth() - buttonSize
-    local yPos = self:getHeight() - buttonSize*0.5 - self:titleBarHeight()
+    local yPos = self:getHeight() - buttonSize - self:titleBarHeight()
     
-    local reorderButton = ISButton:new(xPos, yPos, buttonSize, buttonSize, "", self)
+    local reorderButton = ISButton:new(xPos, yPos, buttonSize, buttonSize+4, "", self)
     reorderButton.anchorTop = false
     reorderButton.anchorLeft = false
     reorderButton.anchorBottom = true
     reorderButton.anchorRight = true
+    reorderButton.borderColor = {r=0.4, g=0.4, b=0.4, a=1};
     reorderButton:setImage(getTexture("media/ui/ReorderContainers/reorder-icon.png"))
     reorderButton:initialise()
     reorderButton:instantiate()
@@ -58,11 +59,12 @@ function ISInventoryPage:createChildren()
     end)
 
     xPos = xPos - buttonSize
-    local lockButton = ISButton:new(xPos, yPos, buttonSize, buttonSize, "", self)
+    local lockButton = ISButton:new(xPos, yPos, buttonSize, buttonSize+4, "", self)
     lockButton.anchorTop = false
     lockButton.anchorLeft = false
     lockButton.anchorBottom = true
     lockButton.anchorRight = true
+    lockButton.borderColor = {r=0.4, g=0.4, b=0.4, a=1};
     lockButton:initialise()
     lockButton:instantiate()
     self:addChild(lockButton)
