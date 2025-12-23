@@ -3,6 +3,7 @@ local ReorderContainersService = require("ReorderContainers/ReorderContainersSer
 ---@class SortableBackpackButton : ISButton
 ---@field public playerNum integer
 ---@field public inventory ItemContainer
+---@field public invPage ISInventoryPage
 ---@field public pre_reorder_onMouseDown fun(self: SortableBackpackButton, x: number, y: number): void
 ---@field public pre_reorder_onMouseMove fun(self: SortableBackpackButton, dx: number, dy: number): void
 ---@field public pre_reorder_onMouseMoveOutside fun(self: SortableBackpackButton, dx: number, dy: number): void
@@ -10,12 +11,13 @@ local ReorderContainersService = require("ReorderContainers/ReorderContainersSer
 local SortableBackpackButton = {}
 
 ---@param button ISButton
----@param playerNum integer
+---@param inventoryPage ISInventoryPage
 ---@return SortableBackpackButton
-function SortableBackpackButton:inject(button, playerNum)
+function SortableBackpackButton:inject(button, inventoryPage)
     ---@cast button SortableBackpackButton
 
-    button.playerNum = playerNum
+    button.invPage = inventoryPage
+    button.playerNum = inventoryPage.player
     
     -- Buttons can be reused, so we need to make sure we don't overwrite the original functions
     if not button.pre_reorder_onMouseDown then
@@ -46,10 +48,7 @@ function SortableBackpackButton:onMouseDown(x, y)
     self.reorderStartMouseY = getMouseY()
     self.reorderStartY = self:getY()
 
-    local invPage = getPlayerInventory(self.playerNum)
-    if not invPage then return end
-
-    self.canDragToReorder = not ReorderContainersService.isLocked(invPage) and ReorderContainersService.canReorderBackpacks(invPage)
+    self.canDragToReorder = not ReorderContainersService.isLocked(self.invPage) and ReorderContainersService.canReorderBackpacks(self.invPage)
 end
 
 function SortableBackpackButton:onMouseMove(dx, dy, skipOgMouseMove)
@@ -58,10 +57,7 @@ function SortableBackpackButton:onMouseMove(dx, dy, skipOgMouseMove)
     end
 
     if self.pressed and self.canDragToReorder then
-        local inventoryPage = getPlayerInventory(self.playerNum)
-        if not inventoryPage then return end
-
-        if math.abs(self.reorderStartMouseY - getMouseY()) > inventoryPage.buttonSize/2 then
+        if math.abs(self.reorderStartMouseY - getMouseY()) > self.invPage.buttonSize/2 then
             self.draggingToReorder = true
         end
 
@@ -93,7 +89,7 @@ function SortableBackpackButton:onMouseMoveOutside(dx, dy)
 end
 
 function SortableBackpackButton:onMouseUp(x, y)
-    local page = getPlayerInventory(self.playerNum)
+    local page = self.invPage
     if page and self.draggingToReorder then
         self.pressed = false;
         self.draggingToReorder = false

@@ -3,5 +3,5 @@ local SortableBackpackButton = require("ReorderContainers/UI/SortableBackpackBut
 local og_addContainerButton = ISInventoryPage.addContainerButton
 function ISInventoryPage:addContainerButton(container, texture, name, tooltip)
     local button = og_addContainerButton(self, container, texture, name, tooltip)
-    return SortableBackpackButton:inject(button, self.player)
+    return SortableBackpackButton:inject(button, self)
 end
