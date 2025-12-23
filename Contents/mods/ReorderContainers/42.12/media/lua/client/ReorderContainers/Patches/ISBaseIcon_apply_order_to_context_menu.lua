@@ -1,10 +1,10 @@
 -- Applies the reordering of backpacks to the context menu of ISBaseIcon
 ISBaseIcon.pre_reorder_doContextMenu = ISBaseIcon.doContextMenu
-ISBaseIcon.doContextMenu = function(self, _context)
+function ISBaseIcon:doContextMenu(_context)
     local playerInv = getPlayerInventory(self.player)
 
     local originalOrder = {};
-    local bpList = nil;
+    local bpList = {};
 
     -- Sort the backpacks by their Y position
     -- Makes the context menu appear in the same order as the backpacks

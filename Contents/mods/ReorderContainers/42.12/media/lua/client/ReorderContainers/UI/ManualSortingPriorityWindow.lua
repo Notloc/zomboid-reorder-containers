@@ -1,14 +1,44 @@
 -- A popup window that allows the user to manually enter a number to sort by.
 
-require "ISUI/ISPanel"
+require ("ISUI/ISPanel")
 
-ReorderContainers_ManualPopup = ISPanel:derive("ReorderContainers_ManualPopup")
+local ReorderContainersService = require("ReorderContainers/ReorderContainersService")
 
-function ReorderContainers_ManualPopup:initialise()
+---@class ManualSortingPriorityWindow : ISPanel
+---@field private inventoryPage ISInventoryPage
+---@field private inventory ItemContainer
+---@field private isLootWindow boolean
+local ManualSortingPriorityWindow = ISPanel:derive("ManualSortingPriorityWindow")
+
+---@param x number
+---@param y number
+---@param inventoryPage ISInventoryPage
+---@param inventory ItemContainer
+---@return ManualSortingPriorityWindow
+function ManualSortingPriorityWindow:new(x, y, inventoryPage, inventory)
+    ---@type ManualSortingPriorityWindow
+    local o = ISPanel:new(x, y, 200, 120)
+    setmetatable(o, self)
+    self.__index = self
+
+    o.backgroundColor.a = 0.9
+    
+    o.inventoryPage = inventoryPage
+    o.inventory = inventory
+
+    local lootPage = getPlayerLoot(inventoryPage.player)
+    if lootPage == inventoryPage then
+        o.isLootWindow = true
+    end
+
+    return o
+end
+
+function ManualSortingPriorityWindow:initialise()
     ISPanel.initialise(self)
 end
 
-function ReorderContainers_ManualPopup:createChildren()
+function ManualSortingPriorityWindow:createChildren()
     local y = 0
     
     if self.isLootWindow then
@@ -16,20 +46,20 @@ function ReorderContainers_ManualPopup:createChildren()
 
         local onLootCheckboxChange = function(self)
             local player = getSpecificPlayer(self.inventoryPage.player)
-            ReorderContainers_Mod.setSortLootWindow(player, self.lootCheckbox.selected[1])
+            ReorderContainersService.setSortLootWindow(player, self.lootCheckbox.selected[1])
         end
 
         self.lootCheckbox = ISTickBox:new(15, y, 20, 20, "", self, onLootCheckboxChange)
         self.lootCheckbox:initialise()
         self.lootCheckbox:addOption("Sort Loot Window?", true)
-        self.lootCheckbox:setSelected(1, ReorderContainers_Mod.getSortLootWindow(getSpecificPlayer(self.inventoryPage.player)))
+        self.lootCheckbox:setSelected(1, ReorderContainersService.getSortLootWindow(getSpecificPlayer(self.inventoryPage.player)))
         self:addChild(self.lootCheckbox)
 
         y = y + 20
     end
 
     y = y + 10
-    self.label = ISLabel:new(0, y, 10, self:getTargetName(), 1, 1, 1, 1, UIFont.Small, true)
+    self.label = ISLabel:new(0, y, 10, self:getTargetName() or "Container", 1, 1, 1, 1, UIFont.Small, true)
     self.label:initialise()
     self.label:instantiate()
     self.label:setX(self:getWidth() / 2 - self.label:getWidth() / 2)
@@ -43,7 +73,7 @@ function ReorderContainers_ManualPopup:createChildren()
     self:addChild(self.infoLabel)
 
     local player = getSpecificPlayer(self.inventoryPage.player)
-    local currentValue = ReorderContainers_Mod.getSortPriority(player, self.inventory, self.inventoryPage)
+    local currentValue = ReorderContainersService.getSortPriority(player, self.inventory, self.inventoryPage)
 
     y = y + 25
     self.entry = ISTextEntryBox:new(tostring(currentValue), 0, y, 100, 20)
@@ -72,7 +102,7 @@ function ReorderContainers_ManualPopup:createChildren()
     self:bringToTop()
 end
 
-function ReorderContainers_ManualPopup:getTargetName()
+function ManualSortingPriorityWindow:getTargetName()
     local player = getSpecificPlayer(self.inventoryPage.player)
 
     if self.inventory == player:getInventory() then
@@ -87,13 +117,13 @@ function ReorderContainers_ManualPopup:getTargetName()
     end
 end
 
-function ReorderContainers_ManualPopup:onOK()
+function ManualSortingPriorityWindow:onOK()
     local player = getSpecificPlayer(self.inventoryPage.player)
     local number = tonumber(self.entry:getText())
     if number then
-        ReorderContainers_Mod.setSortPriority(player, self.inventory, number, true)
+        ReorderContainersService.setSortPriority(player, self.inventory, number, true)
     else
-        ReorderContainers_Mod.setSortPriority(player, self.inventory, nil, false)
+        ReorderContainersService.setSortPriority(player, self.inventory, nil, false)
     end
 
     self.inventoryPage:refreshBackpacks()
@@ -102,24 +132,8 @@ function ReorderContainers_ManualPopup:onOK()
     self.inventoryPage:updateReorderContainersLock()
 end
 
-function ReorderContainers_ManualPopup:onCancel()
+function ManualSortingPriorityWindow:onCancel()
     self:removeFromUIManager()
 end
 
-function ReorderContainers_ManualPopup:new(x, y, inventoryPage, inventory)
-    local o = ISPanel:new(x, y, 200, 120)
-    setmetatable(o, self)
-    self.__index = self
-
-    o.backgroundColor.a = 0.9
-    
-    o.inventoryPage = inventoryPage
-    o.inventory = inventory
-
-    local lootPage = getPlayerLoot(inventoryPage.player)
-    if lootPage == inventoryPage then
-        o.isLootWindow = true
-    end
-
-    return o
-end
+return ManualSortingPriorityWindow
