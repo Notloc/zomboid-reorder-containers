@@ -41,7 +41,7 @@ function ISInventoryPage:reorderContainerButtons(draggedButton)
 
         if not isDraggedButton and parent and seenObjs[parent] then
             -- Skip this button, some IsoObjects have multiple inventories
-        else
+        elseif targetModData then
             if parent then
                 seenObjs[parent] = true
             end
