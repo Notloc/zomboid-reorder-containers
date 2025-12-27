@@ -21,7 +21,10 @@ ReorderContainersService.getSortDataAndParentObjectAndKeySuffix = function(playe
     local parentObject = nil
     local rootModData = nil
 
+    -- The key suffix helps use prevent collisions with other players when sorting the loot window
+    -- It also lets us store multiple sort data entries in the player's mod data for special containers
     local keySuffix = player:getUsername()
+    
     local invType = inventory:getType()
     local isPlayerInv = inventory == player:getInventory()
     local isSpecialInv = SPECIAL_SORT_KEYS_BY_INV_TYPE[invType]
