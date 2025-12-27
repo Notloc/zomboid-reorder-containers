@@ -5,9 +5,9 @@ local MOD_PREFIX = Constants.MODULE
 local Client = {}
 
 ---@param parentObj GameEntity|IsoObject|nil
----@param playerObj IsoPlayer|nil
----@param specialKey string|nil
-function Client.saveModData(parentObj, playerObj, specialKey)
+---@param playerObj IsoPlayer
+---@param keySuffix string
+function Client.saveModData(parentObj, playerObj, keySuffix)
     if not isClient() or isServer() then return end
 
     if not parentObj then
@@ -24,7 +24,7 @@ function Client.saveModData(parentObj, playerObj, specialKey)
         ---@cast parentObj InventoryItem
 
         local rootModData = parentObj:getModData()
-        local sortData = ModDataService.getSortData(rootModData, specialKey)
+        local sortData = ModDataService.getSortData(rootModData, keySuffix)
 
         ---@cast parentObj InventoryItem
         local worldItem = parentObj:getWorldItem()
@@ -37,6 +37,7 @@ function Client.saveModData(parentObj, playerObj, specialKey)
                 y = square:getY(),
                 z = square:getZ(),
                 modData = sortData,
+                keySuffix = keySuffix,
             }
             sendClientCommand(playerObj, Constants.MODULE, Constants.COMMAND_SAVE_GROUND_ITEM_DATA, saveGroundItemData)
         else
@@ -44,6 +45,7 @@ function Client.saveModData(parentObj, playerObj, specialKey)
             local saveItemData = {
                 itemId = parentObj:getID(),
                 modData = sortData,
+                keySuffix = keySuffix,
             }
             sendClientCommand(playerObj, Constants.MODULE, Constants.COMMAND_SAVE_ITEM_DATA, saveItemData)
         end

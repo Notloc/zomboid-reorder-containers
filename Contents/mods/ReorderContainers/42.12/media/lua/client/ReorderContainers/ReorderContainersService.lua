@@ -16,16 +16,18 @@ local ReorderContainersService = {}
 
 ---@param player IsoPlayer
 ---@param inventory ItemContainer
----@return RCSortingData|nil, GameEntity|nil, string|nil
-ReorderContainersService.getSortDataAndParentObjectAndSpecialKey = function(player, inventory)
+---@return RCSortingData|nil, GameEntity|nil, string
+ReorderContainersService.getSortDataAndParentObjectAndKeySuffix = function(player, inventory)
     local parentObject = nil
     local rootModData = nil
 
+    local keySuffix = player:getUsername()
     local invType = inventory:getType()
-    local specialKey = SPECIAL_SORT_KEYS_BY_INV_TYPE[invType] and invType or nil
     local isPlayerInv = inventory == player:getInventory()
+    local isSpecialInv = SPECIAL_SORT_KEYS_BY_INV_TYPE[invType]
 
-    if specialKey or isPlayerInv then
+    if isSpecialInv or isPlayerInv then
+        keySuffix = invType
         rootModData = player:getModData()
     else
         local item = inventory:getContainingItem()
@@ -40,11 +42,11 @@ ReorderContainersService.getSortDataAndParentObjectAndSpecialKey = function(play
     end
 
     if not rootModData then
-        return nil, nil, nil
+        return nil, parentObject, keySuffix
     end
 
-    local sortData= ModDataService.getSortData(rootModData, specialKey)
-    return sortData, parentObject, specialKey
+    local sortData= ModDataService.getSortData(rootModData, keySuffix)
+    return sortData, parentObject, keySuffix
 end
 
 ---@param player IsoPlayer
@@ -52,7 +54,7 @@ end
 ---@param inventoryPage ISInventoryPage
 ---@return number
 ReorderContainersService.getSortPriority = function(player, inventory, inventoryPage)
-    local sortData = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    local sortData = ReorderContainersService.getSortDataAndParentObjectAndKeySuffix(player, inventory)
     return (sortData and sortData.sortPriority) or ReorderContainersService.getDefaultSortPriority(inventory, inventoryPage)
 end
 
@@ -61,11 +63,11 @@ end
 ---@param priority number|nil
 ---@param isManual boolean
 ReorderContainersService.setSortPriority = function(player, inventory, priority, isManual)
-    local sortData, parent, specialKey = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    local sortData, parent, keySuffix = ReorderContainersService.getSortDataAndParentObjectAndKeySuffix(player, inventory)
     if sortData then
         sortData.sortPriority = priority
         sortData.isManual = isManual
-        Client.saveModData(parent, player, specialKey)
+        Client.saveModData(parent, player, keySuffix)
     end
 end
 
@@ -87,7 +89,7 @@ end
 ---@param inventory ItemContainer
 ---@return boolean
 ReorderContainersService.isManual = function(player, inventory)
-    local sortData = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    local sortData = ReorderContainersService.getSortDataAndParentObjectAndKeySuffix(player, inventory)
     return sortData and sortData.isManual or false
 end
 

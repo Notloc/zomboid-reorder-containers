@@ -1,6 +1,7 @@
 ---@class SaveItemDataRequest
 ---@field itemId integer
 ---@field modData table<string, any>
+---@field keySuffix string
 
 ---@class SaveGroundItemDataRequest
 ---@field itemId integer
@@ -8,6 +9,7 @@
 ---@field y integer
 ---@field z integer
 ---@field modData table<string, any>
+---@field keySuffix string
 
 return {
     MODULE = "ReorderContainers",

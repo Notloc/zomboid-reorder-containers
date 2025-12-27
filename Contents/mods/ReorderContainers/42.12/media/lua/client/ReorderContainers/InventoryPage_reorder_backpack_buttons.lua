@@ -36,7 +36,7 @@ function ISInventoryPage:reorderContainerButtons(draggedButton)
     local seenObjs = {}
     local lastSort = 0
     for index, data in ipairs(inventoriesAndY) do
-        local sortData, parent, specialKey = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(playerObj, data.inventory)
+        local sortData, parent, keySuffix = ReorderContainersService.getSortDataAndParentObjectAndKeySuffix(playerObj, data.inventory)
         local isManual = sortData and sortData.isManual or false
         local isDraggedButton = data.inventory == draggedButton.inventory
 
@@ -55,7 +55,7 @@ function ISInventoryPage:reorderContainerButtons(draggedButton)
                 lastSort = lastSort + 10
                 sortData.sortPriority = lastSort
                 sortData.isManual = false
-                Client.saveModData(parent, playerObj, specialKey)
+                Client.saveModData(parent, playerObj, keySuffix)
             else
                 lastSort = savedSort
                 -- Look back one button
@@ -78,7 +78,7 @@ ISInventoryPage.applyBackpackOrder = function(self)
     for index, button in ipairs(self.backpacks) do
         if isButtonValid(self, button) then
             local sort = 1000 + index
-            local sortData = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(playerObj, button.inventory)
+            local sortData = ReorderContainersService.getSortDataAndParentObjectAndKeySuffix(playerObj, button.inventory)
             if sortData then
                 sort = sortData.sortPriority or (1000 + index)
             end

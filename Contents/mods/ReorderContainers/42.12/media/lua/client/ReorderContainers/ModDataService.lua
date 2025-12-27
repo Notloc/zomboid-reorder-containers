@@ -48,11 +48,10 @@ function ModDataService.getModuleObject(rootModData, objectKey, defaultObject)
 end
 
 ---@param rootModData table
----@param specialKey string|nil For special containers we store in the player's mod data so they don't collide.
+---@param keySuffix string
 ---@return RCSortingData
-function ModDataService.getSortData(rootModData, specialKey)
-    specialKey = specialKey or ""
-    local key = ModDataConstants.SORT_DATA_KEY .. specialKey
+function ModDataService.getSortData(rootModData, keySuffix)
+    local key = ModDataConstants.SORT_DATA_KEY .. keySuffix
     return ModDataService.getModuleObject(rootModData, key, DEFAULT_SORT_DATA)
 end
 

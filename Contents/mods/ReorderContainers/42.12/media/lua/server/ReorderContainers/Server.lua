@@ -26,9 +26,10 @@ end
 function Server.saveItemData(playerObj, request)
     local itemId = request.itemId
     local item = playerObj:getInventory():getItemWithID(itemId)
-
     if not item then return end
-    Server.writeModData(item:getModData(), request.modData, ModDataConstants.SORT_DATA_KEY)
+
+    local key = ModDataConstants.SORT_DATA_KEY .. request.keySuffix
+    Server.writeModData(item:getModData(), request.modData, key)
 end
 
 ---@param request SaveGroundItemDataRequest
@@ -37,9 +38,10 @@ function Server.saveGroundItemData(request)
     if not square then return end
 
     local targetItem = Server.findItemOnSquare(square, request.itemId)
-
     if not targetItem then return end
-    Server.writeModData(targetItem:getModData(), request.modData, ModDataConstants.SORT_DATA_KEY)
+
+    local key = ModDataConstants.SORT_DATA_KEY .. request.keySuffix
+    Server.writeModData(targetItem:getModData(), request.modData, key)
 end
 
 ---@param rootModData table
