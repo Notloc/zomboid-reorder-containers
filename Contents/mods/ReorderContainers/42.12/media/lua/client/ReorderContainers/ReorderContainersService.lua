@@ -1,18 +1,14 @@
-local SORT_KEY = "ReorderContainers_Sort"
-local SET_MANUALLY = "ReorderContainers_SetManually"
-local INV_LOCK = "ReorderContainers_InvLock"
-local LOOT_LOCK = "ReorderContainers_LootLock"
-local LOOT_SORT = "ReorderContainers_LootSort"
+local Client = require("ReorderContainers/Client")
+local ModDataService = require("ReorderContainers/ModDataService")
 
 -- For special containers that aren't "real"
 local SPECIAL_SORT_KEYS_BY_INV_TYPE = {
-    ["floor"] = "ReorderContainers_Sort_Floor",
-
+    ["floor"] = true,
     -- SpiffUI
-    ["SpiffBodies"] = "Reorder_SpiffBodies",
-    ["SpiffContainer"] = "Reorder_SpiffContainer",
-    ["SpiffPack"] = "Reorder_SpiffPack",
-    ["SpiffEquip"] = "Reorder_SpiffEquip",
+    ["SpiffBodies"] = true,
+    ["SpiffContainer"] = true,
+    ["SpiffPack"] = true,
+    ["SpiffEquip"] = true
 }
 
 ---@class ReorderContainersService
@@ -20,34 +16,35 @@ local ReorderContainersService = {}
 
 ---@param player IsoPlayer
 ---@param inventory ItemContainer
----@return table|nil, string, GameEntity|nil
-ReorderContainersService.getTargetModDataAndSortKeyAndParentObject = function(player, inventory)
-    local playerKey = player:getUsername()
-    local sortKey = SORT_KEY
+---@return RCSortingData|nil, GameEntity|nil, string|nil
+ReorderContainersService.getSortDataAndParentObjectAndSpecialKey = function(player, inventory)
     local parentObject = nil
-    local targetModData = nil
+    local rootModData = nil
 
-    if inventory == player:getInventory() then
-        sortKey = SORT_KEY
-        targetModData = player:getModData()
-    elseif SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()] then
-        sortKey = SPECIAL_SORT_KEYS_BY_INV_TYPE[inventory:getType()]
-        targetModData = player:getModData()
+    local invType = inventory:getType()
+    local specialKey = SPECIAL_SORT_KEYS_BY_INV_TYPE[invType] and invType or nil
+    local isPlayerInv = inventory == player:getInventory()
+
+    if specialKey or isPlayerInv then
+        rootModData = player:getModData()
     else
-        sortKey = playerKey..SORT_KEY
-
         local item = inventory:getContainingItem()
         local isoObject = inventory:getParent()
         if item then
-            targetModData = item:getModData()
+            rootModData = item:getModData()
             parentObject = item
         elseif isoObject then
-            targetModData = isoObject:getModData()
+            rootModData = isoObject:getModData()
             parentObject = isoObject
         end
     end
 
-    return targetModData, sortKey, parentObject
+    if not rootModData then
+        return nil, nil, nil
+    end
+
+    local sortData= ModDataService.getSortData(rootModData, specialKey)
+    return sortData, parentObject, specialKey
 end
 
 ---@param player IsoPlayer
@@ -55,11 +52,21 @@ end
 ---@param inventoryPage ISInventoryPage
 ---@return number
 ReorderContainersService.getSortPriority = function(player, inventory, inventoryPage)
-    local targetModData, sortKey = ReorderContainersService.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    if targetModData then
-        return targetModData[sortKey] or ReorderContainersService.getDefaultSortPriority(inventory, inventoryPage)
+    local sortData = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    return (sortData and sortData.sortPriority) or ReorderContainersService.getDefaultSortPriority(inventory, inventoryPage)
+end
+
+---@param player IsoPlayer
+---@param inventory ItemContainer
+---@param priority number|nil
+---@param isManual boolean
+ReorderContainersService.setSortPriority = function(player, inventory, priority, isManual)
+    local sortData, parent, specialKey = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    if sortData then
+        sortData.sortPriority = priority
+        sortData.isManual = isManual
+        Client.saveModData(parent, player, specialKey)
     end
-    return ReorderContainersService.getDefaultSortPriority(inventory, inventoryPage)
 end
 
 ---@param inventory ItemContainer
@@ -78,65 +85,64 @@ end
 
 ---@param player IsoPlayer
 ---@param inventory ItemContainer
----@param priority number|nil
----@param isManual boolean
-ReorderContainersService.setSortPriority = function(player, inventory, priority, isManual)
-    local targetModData, sortKey = ReorderContainersService.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    if targetModData then
-        targetModData[sortKey] = priority
-        targetModData[SET_MANUALLY] = isManual
-    end
-end
-
----@param player IsoPlayer
----@param inventory ItemContainer
 ---@return boolean
 ReorderContainersService.isManual = function(player, inventory)
-    local targetModData, sortKey = ReorderContainersService.getTargetModDataAndSortKeyAndParentObject(player, inventory)
-    return targetModData and targetModData[SET_MANUALLY]
+    local sortData = ReorderContainersService.getSortDataAndParentObjectAndSpecialKey(player, inventory)
+    return sortData and sortData.isManual or false
 end
 
 ---@param playerObj IsoPlayer
 ---@return boolean
 ReorderContainersService.getSortLootWindow = function(playerObj)
-    return playerObj:getModData()[LOOT_SORT]
+    local options = ModDataService.getPlayerOptions(playerObj)
+    return options.allowLootSorting
 end
 
 ---@param playerObj IsoPlayer
 ---@param value boolean
 ReorderContainersService.setSortLootWindow = function(playerObj, value)
-    playerObj:getModData()[LOOT_SORT] = value
+    local options = ModDataService.getPlayerOptions(playerObj)
+    options.allowLootSorting = value
+    playerObj:transmitModData()
 end
 
+--- Not to be confused with isLocked. This checks if sorting is enabled for the given inventory page.
+--- Always true for the inventory, but can be disabled for loot windows.
 ---@param inventoryPage ISInventoryPage
 ---@return boolean
-ReorderContainersService.canReorderBackpacks = function(inventoryPage)
-    return inventoryPage ~= getPlayerLoot(inventoryPage.player) or ReorderContainersService.getSortLootWindow(getSpecificPlayer(inventoryPage.player))
+ReorderContainersService.isSortingEnabled = function(inventoryPage)
+    local playerObj = getSpecificPlayer(inventoryPage.player)
+    local options = ModDataService.getPlayerOptions(playerObj)
+    local isLootPage = inventoryPage == getPlayerLoot(inventoryPage.player)
+    return not isLootPage or options.allowLootSorting
 end
 
 ---@param inventoryPage ISInventoryPage
 ---@return boolean
 ReorderContainersService.isLocked = function(inventoryPage)
     local player = getSpecificPlayer(inventoryPage.player)
+    local options = ModDataService.getPlayerOptions(player)
     if inventoryPage.onCharacter then
-        return player:getModData()[INV_LOCK]
+        return options.lockInventorySorting
     else
-        return player:getModData()[LOOT_LOCK]
+        return options.lockLootSorting
     end
 end
 
 ---@param playerObj IsoPlayer
 ReorderContainersService.toggleLootLock = function(playerObj)
-    local modData = playerObj:getModData()
-    modData[LOOT_LOCK] = not modData[LOOT_LOCK]
-    return modData[LOOT_LOCK]
+    local options = ModDataService.getPlayerOptions(playerObj)
+    options.lockLootSorting = not options.lockLootSorting
+    playerObj:transmitModData()
+    return options.lockLootSorting
 end
 
 ---@param playerObj IsoPlayer
 ReorderContainersService.toggleInventoryLock = function(playerObj)
-    local modData = playerObj:getModData()
-    modData[INV_LOCK] = not modData[INV_LOCK]
-    return modData[INV_LOCK]
+    local options = ModDataService.getPlayerOptions(playerObj)
+    options.lockInventorySorting = not options.lockInventorySorting
+    playerObj:transmitModData()
+    return options.lockInventorySorting
 end
 
 return ReorderContainersService

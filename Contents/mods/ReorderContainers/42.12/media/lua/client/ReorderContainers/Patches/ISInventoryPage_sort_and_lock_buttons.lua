@@ -14,7 +14,7 @@ local function updateLock(inventoryPage, lockButton)
         newState = ReorderContainersService.toggleLootLock(getSpecificPlayer(inventoryPage.player))
     end
     
-    if newState or not ReorderContainersService.canReorderBackpacks(inventoryPage) then 
+    if newState or not ReorderContainersService.isSortingEnabled(inventoryPage) then 
         lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-locked.png"))        
     else
         lockButton:setImage(getTexture("media/ui/ReorderContainers/reorder-unlocked.png"))
@@ -70,11 +70,11 @@ function ISInventoryPage:createChildren()
     self:addChild(lockButton)
     self.reorderLockButton = lockButton
 
-    local isLocked = ReorderContainersService.isLocked(inventoryPage) or not ReorderContainersService.canReorderBackpacks(inventoryPage)
+    local isLocked = ReorderContainersService.isLocked(inventoryPage) or not ReorderContainersService.isSortingEnabled(inventoryPage)
     lockButton:setImage(isLocked and LOCK_TEX or UNLOCK_TEX)
 
     lockButton:setOnClick(function()
-        if not ReorderContainersService.canReorderBackpacks(self) then
+        if not ReorderContainersService.isSortingEnabled(self) then
             self.reorderOptionsButton:onMouseDown(0,0)
             return
         end

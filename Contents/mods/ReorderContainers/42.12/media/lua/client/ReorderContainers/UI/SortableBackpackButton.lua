@@ -8,6 +8,7 @@ local ReorderContainersService = require("ReorderContainers/ReorderContainersSer
 ---@field public pre_reorder_onMouseMove fun(self: SortableBackpackButton, dx: number, dy: number): void
 ---@field public pre_reorder_onMouseMoveOutside fun(self: SortableBackpackButton, dx: number, dy: number): void
 ---@field public pre_reorder_onMouseUp fun(self: SortableBackpackButton, x: number, y: number): void
+---@field public pre_reorder_onMouseUpOutside fun(self: SortableBackpackButton, x: number, y: number): void
 local SortableBackpackButton = {}
 
 ---@param button ISButton
@@ -40,6 +41,11 @@ function SortableBackpackButton:inject(button, inventoryPage)
     end
     button.onMouseUp = SortableBackpackButton.onMouseUp
 
+    if not button.pre_reorder_onMouseUpOutside then
+        button.pre_reorder_onMouseUpOutside = button.onMouseUpOutside
+    end
+    button.onMouseUpOutside = SortableBackpackButton.onMouseUpOutside
+
     return button
 end
 
@@ -48,7 +54,7 @@ function SortableBackpackButton:onMouseDown(x, y)
     self.reorderStartMouseY = getMouseY()
     self.reorderStartY = self:getY()
 
-    self.canDragToReorder = not ReorderContainersService.isLocked(self.invPage) and ReorderContainersService.canReorderBackpacks(self.invPage)
+    self.canDragToReorder = not ReorderContainersService.isLocked(self.invPage) and ReorderContainersService.isSortingEnabled(self.invPage)
 end
 
 function SortableBackpackButton:onMouseMove(dx, dy, skipOgMouseMove)
@@ -80,11 +86,8 @@ end
 
 function SortableBackpackButton:onMouseMoveOutside(dx, dy)
     self.pre_reorder_onMouseMoveOutside(self, dx, dy)
-    SortableBackpackButton.onMouseMove(self, dx, dy, true)
-
-    -- if the mouse is no longer down, we missed the mouse up event
-    if self.draggingToReorder and not isMouseButtonDown(0) then
-        SortableBackpackButton.onMouseUp(self, 0, 0)
+    if self.pressed and self.canDragToReorder then
+        SortableBackpackButton.onMouseMove(self, dx, dy, true)
     end
 end
 
@@ -97,6 +100,18 @@ function SortableBackpackButton:onMouseUp(x, y)
         page:refreshBackpacks()
     else
         self.pre_reorder_onMouseUp(self, x, y)
+    end
+end
+
+function SortableBackpackButton:onMouseUpOutside(x, y)
+    local page = self.invPage
+    if page and self.draggingToReorder then
+        self.pressed = false;
+        self.draggingToReorder = false
+        page:reorderContainerButtons(self)
+        page:refreshBackpacks()
+    else
+        self.pre_reorder_onMouseUpOutside(self, x, y)
     end
 end
 

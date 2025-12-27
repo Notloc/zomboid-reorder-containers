@@ -27,7 +27,7 @@ function ISInventoryPage:onJoypadDown(button)
 
     if button == Joypad.RBumper then
         local lootPage = getPlayerLoot(self.player)
-        if lootPage and ReorderContainersService.canReorderBackpacks(lootPage) then
+        if lootPage and ReorderContainersService.isSortingEnabled(lootPage) then
             return handleJoypadDown(self, lootPage, button)
         end
     end

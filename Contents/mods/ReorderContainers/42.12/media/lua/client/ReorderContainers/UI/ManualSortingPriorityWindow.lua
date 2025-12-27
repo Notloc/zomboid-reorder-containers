@@ -44,12 +44,7 @@ function ManualSortingPriorityWindow:createChildren()
     if self.isLootWindow then
         y = y + 10
 
-        local onLootCheckboxChange = function(self)
-            local player = getSpecificPlayer(self.inventoryPage.player)
-            ReorderContainersService.setSortLootWindow(player, self.lootCheckbox.selected[1])
-        end
-
-        self.lootCheckbox = ISTickBox:new(15, y, 20, 20, "", self, onLootCheckboxChange)
+        self.lootCheckbox = ISTickBox:new(15, y, 20, 20, "")
         self.lootCheckbox:initialise()
         self.lootCheckbox:addOption("Sort Loot Window?", true)
         self.lootCheckbox:setSelected(1, ReorderContainersService.getSortLootWindow(getSpecificPlayer(self.inventoryPage.player)))
@@ -125,6 +120,8 @@ function ManualSortingPriorityWindow:onOK()
     else
         ReorderContainersService.setSortPriority(player, self.inventory, nil, false)
     end
+
+    ReorderContainersService.setSortLootWindow(player, self.lootCheckbox.selected[1])
 
     self.inventoryPage:refreshBackpacks()
     self:removeFromUIManager()
