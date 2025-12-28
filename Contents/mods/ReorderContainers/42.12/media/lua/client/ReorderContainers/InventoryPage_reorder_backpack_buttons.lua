@@ -40,7 +40,7 @@ function ISInventoryPage:reorderContainerButtons(draggedButton)
         local isManual = sortData and sortData.isManual or false
         local isDraggedButton = data.inventory == draggedButton.inventory
 
-        if not isDraggedButton and parent and seenObjs[parent] then
+        if not isDraggedButton and parent ~= playerObj and seenObjs[parent] then
             -- Skip this button, some IsoObjects have multiple inventories
         elseif sortData then
             if parent then

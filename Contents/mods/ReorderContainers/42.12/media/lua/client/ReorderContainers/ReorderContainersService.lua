@@ -1,22 +1,12 @@
 local Client = require("ReorderContainers/Client")
 local ModDataService = require("ReorderContainers/ModDataService")
 
--- For special containers that aren't "real"
-local SPECIAL_SORT_KEYS_BY_INV_TYPE = {
-    ["floor"] = true,
-    -- SpiffUI
-    ["SpiffBodies"] = true,
-    ["SpiffContainer"] = true,
-    ["SpiffPack"] = true,
-    ["SpiffEquip"] = true
-}
-
 ---@class ReorderContainersService
 local ReorderContainersService = {}
 
 ---@param player IsoPlayer
 ---@param inventory ItemContainer
----@return RCSortingData|nil, GameEntity|nil, string
+---@return RCSortingData, IsoObject|InventoryItem|IsoPlayer, string
 ReorderContainersService.getSortDataAndParentObjectAndKeySuffix = function(player, inventory)
     local parentObject = nil
     local rootModData = nil
@@ -27,11 +17,11 @@ ReorderContainersService.getSortDataAndParentObjectAndKeySuffix = function(playe
     
     local invType = inventory:getType()
     local isPlayerInv = inventory == player:getInventory()
-    local isSpecialInv = SPECIAL_SORT_KEYS_BY_INV_TYPE[invType]
 
-    if isSpecialInv or isPlayerInv then
+    if isPlayerInv then
         keySuffix = invType
         rootModData = player:getModData()
+        parentObject = player
     else
         local item = inventory:getContainingItem()
         local isoObject = inventory:getParent()
@@ -44,8 +34,10 @@ ReorderContainersService.getSortDataAndParentObjectAndKeySuffix = function(playe
         end
     end
 
-    if not rootModData then
-        return nil, parentObject, keySuffix
+    if not parentObject or not rootModData then
+        keySuffix = invType
+        rootModData = player:getModData()
+        parentObject = player
     end
 
     local sortData= ModDataService.getSortData(rootModData, keySuffix)

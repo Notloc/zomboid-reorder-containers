@@ -14,7 +14,7 @@ function Client.saveModData(parentObj, playerObj, keySuffix)
         return
     end
 
-    if instanceof(parentObj, "IsoObject") then
+    if instanceof(parentObj, "IsoObject") or instanceof(parentObj, "IsoPlayer") then
         ---@cast parentObj IsoObject
         parentObj:transmitModData()
         return
